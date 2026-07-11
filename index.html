@@ -1,95 +1,261 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>여우방 명단</title>
 <style>
-body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;padding:14px;color:#222;background:#fff}
-h1{font-size:22px;margin:0 0 14px}
-.box{border:1px solid #bbb;padding:10px;margin-bottom:14px}
-input{width:100%;box-sizing:border-box;padding:11px;border:1px solid #aaa;font-size:15px;margin-bottom:8px}
-button{padding:9px 12px;border:1px solid #888;background:#f5f5f5;font-weight:700}
-.tabs{display:flex;gap:6px;overflow-x:auto;padding-top:10px}
-.tab{min-width:52px;white-space:nowrap}.active{background:#222;color:#fff}
-.count{margin-top:9px;color:#666;font-size:13px}
-.group{border-top:2px solid #222;margin-top:18px;padding-top:10px}
-.head{display:flex;justify-content:space-between;align-items:center}
-.title{font-size:18px;font-weight:700}
-.person{padding:9px 2px;border-bottom:1px solid #ddd}
-.name{font-weight:700}.insta{display:inline-block;margin-top:3px;color:#1769c2;text-decoration:underline}
-.empty{text-align:center;color:#777;padding:24px}
+body{
+  margin:0;
+  padding:12px;
+  font-family:Arial,"Malgun Gothic",sans-serif;
+  background:#fff;
+  color:#222;
+}
+h1{
+  font-size:22px;
+  margin:0 0 12px;
+}
+.box{
+  border:1px solid #bbb;
+  padding:10px;
+  margin-bottom:12px;
+}
+input{
+  width:100%;
+  box-sizing:border-box;
+  padding:10px;
+  font-size:15px;
+  border:1px solid #aaa;
+  margin-bottom:8px;
+}
+button{
+  padding:9px 12px;
+  border:1px solid #888;
+  background:#f4f4f4;
+  color:#222;
+  font-weight:bold;
+}
+.pages{
+  display:flex;
+  gap:6px;
+  overflow-x:auto;
+  padding:10px 0 4px;
+}
+.page-btn{
+  white-space:nowrap;
+}
+.active{
+  background:#222;
+  color:#fff;
+}
+.count{
+  font-size:13px;
+  color:#666;
+  margin-top:8px;
+}
+.person{
+  border-bottom:1px solid #ddd;
+  padding:10px 2px;
+  line-height:1.45;
+}
+.name{
+  font-weight:bold;
+}
+.insta{
+  display:inline-block;
+  margin-top:3px;
+  color:#1666c1;
+  text-decoration:underline;
+  word-break:break-all;
+}
+.empty{
+  padding:24px 0;
+  text-align:center;
+  color:#777;
+}
 </style>
 </head>
 <body>
-<h1>여우방 명단</h1>
-<div class="box">
-<input id="q" placeholder="번호, 닉네임, 아이디 검색" oninput="render()">
-<button onclick="loadData()">새로고침</button>
-<div id="tabs" class="tabs"></div>
-<div id="count" class="count">불러오는 중...</div>
-</div>
-<div id="list"></div>
-<script>
-const SID="1m14GywxIymZp6p9izJ6QVWaC8fCnjr5F5OdXCKKUcss";
-const SNAME="Sheet1", SIZE=30;
-let data=[], selected="전체";
 
-function loadJsonp(){
-  return new Promise((resolve,reject)=>{
-    const cb="liteCb"+Date.now();
-    const s=document.createElement("script");
-    const timer=setTimeout(()=>{cleanup();reject(new Error("timeout"))},12000);
-    function cleanup(){clearTimeout(timer);try{delete window[cb]}catch(e){};s.remove()}
-    window[cb]=j=>{cleanup();resolve(j)};
-    s.onerror=()=>{cleanup();reject(new Error("load"))};
-    s.src="https://docs.google.com/spreadsheets/d/"+SID+"/gviz/tq?sheet="+encodeURIComponent(SNAME)+"&tqx=responseHandler:"+cb+";out:json&cache="+Date.now();
-    document.head.appendChild(s);
+<h1>여우방 명단</h1>
+
+<div class="box">
+  <input id="search" placeholder="번호, 닉네임, 아이디 검색" oninput="render()">
+  <button onclick="loadData()">새로고침</button>
+  <div id="pages" class="pages"></div>
+  <div id="count" class="count">불러오는 중...</div>
+</div>
+
+<div id="list"></div>
+
+<script>
+const SHEET_ID = "1m14GywxIymZp6p9izJ6QVWaC8fCnjr5F5OdXCKKUcss";
+const SHEET_NAME = "Sheet1";
+const PAGE_SIZE = 500;
+
+let data = [];
+let currentPage = "전체";
+
+function normalizeInsta(value) {
+  value = String(value || "").trim();
+  if (!value) return "";
+  return value.startsWith("@") ? value : "@" + value;
+}
+
+function loadWithJsonp() {
+  return new Promise((resolve, reject) => {
+    const callbackName = "liteV3Callback_" + Date.now();
+    const script = document.createElement("script");
+
+    const timer = setTimeout(() => {
+      try { delete window[callbackName]; } catch (e) {}
+      script.remove();
+      reject(new Error("timeout"));
+    }, 12000);
+
+    window[callbackName] = function(json) {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (e) {}
+      script.remove();
+      resolve(json);
+    };
+
+    script.onerror = function() {
+      clearTimeout(timer);
+      try { delete window[callbackName]; } catch (e) {}
+      script.remove();
+      reject(new Error("load error"));
+    };
+
+    script.src =
+      "https://docs.google.com/spreadsheets/d/" + SHEET_ID +
+      "/gviz/tq?sheet=" + encodeURIComponent(SHEET_NAME) +
+      "&tqx=responseHandler:" + callbackName + ";out:json&cache=" + Date.now();
+
+    document.head.appendChild(script);
   });
 }
-function norm(v){v=String(v||"").trim();return v?(v.startsWith("@")?v:"@"+v):""}
-function parse(j){
-  const rows=(j.table&&j.table.rows)||[];
-  return rows.map(r=>{
-    const c=r.c||[];
-    return {no:Number(String(c[0]?.v??"").replace(/[^0-9]/g,"")),name:String(c[1]?.v??"").trim(),insta:norm(c[2]?.v??"")}
-  }).filter(x=>x.no&&x.name&&x.insta).sort((a,b)=>a.no-b.no);
-}
-async function loadData(){
-  count.textContent="불러오는 중...";
-  try{data=parse(await loadJsonp());makeTabs();render()}
-  catch(e){count.textContent="연동 오류";list.innerHTML='<div class="empty">명단을 불러오지 못했습니다.</div>'}
-}
-function gno(n){return Math.floor((n-1)/SIZE)+1}
-function makeTabs(){
-  const max=data.length?Math.max(...data.map(x=>gno(x.no))):0;
-  let h='<button class="tab '+(selected==="전체"?"active":"")+'" onclick="selectTab(\'전체\')">전체</button>';
-  for(let i=1;i<=max;i++)h+='<button class="tab '+(selected===i?"active":"")+'" onclick="selectTab('+i+')">'+i+'조</button>';
-  tabs.innerHTML=h;
-}
-function selectTab(g){selected=g;makeTabs();render()}
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function render(){
-  const q=document.getElementById("q").value.toLowerCase().trim();
-  const arr=data.filter(x=>(x.no+" "+x.name+" "+x.insta).toLowerCase().includes(q)&&(selected==="전체"||gno(x.no)===selected));
-  count.textContent="검색 결과 "+arr.length.toLocaleString()+"명";
-  if(!arr.length){list.innerHTML='<div class="empty">표시할 인원이 없습니다.</div>';return}
-  const gs={};arr.forEach(x=>(gs[gno(x.no)]||(gs[gno(x.no)]=[])).push(x));
-  let h="";
-  Object.keys(gs).map(Number).sort((a,b)=>a-b).forEach(g=>{
-    h+='<section class="group"><div class="head"><div class="title">'+g+'조 ('+gs[g].length+'명)</div><button onclick="copyGroup('+g+')">'+g+'조 복사</button></div>';
-    gs[g].forEach(x=>{
-      const id=x.insta.slice(1);
-      h+='<div class="person"><div class="name">'+x.no+'. '+esc(x.name)+'</div><a class="insta" target="_blank" href="https://www.instagram.com/'+encodeURIComponent(id)+'/">'+esc(x.insta)+'</a></div>';
-    });
-    h+='</section>';
+
+function parseRows(json) {
+  const rows = json.table && json.table.rows ? json.table.rows : [];
+
+  return rows.map(function(row) {
+    const cells = row.c || [];
+    return {
+      no: Number(String(cells[0] && cells[0].v != null ? cells[0].v : "").replace(/[^0-9]/g, "")),
+      nickname: String(cells[1] && cells[1].v != null ? cells[1].v : "").trim(),
+      insta: normalizeInsta(cells[2] && cells[2].v != null ? cells[2].v : "")
+    };
+  })
+  .filter(function(item) {
+    return item.no && item.nickname && item.insta;
+  })
+  .sort(function(a, b) {
+    return a.no - b.no;
   });
-  list.innerHTML=h;
 }
-function copyGroup(g){
-  const t=data.filter(x=>gno(x.no)===g).map(x=>x.no+". "+x.name+" "+x.insta).join("\n");
-  navigator.clipboard.writeText(t).then(()=>alert(g+"조 복사 완료"));
+
+async function loadData() {
+  document.getElementById("count").textContent = "불러오는 중...";
+  document.getElementById("list").innerHTML = "";
+
+  try {
+    const json = await loadWithJsonp();
+    data = parseRows(json);
+    makePages();
+    render();
+  } catch (error) {
+    document.getElementById("count").textContent = "연동 오류";
+    document.getElementById("list").innerHTML =
+      '<div class="empty">명단을 불러오지 못했습니다.</div>';
+  }
 }
+
+function makePages() {
+  const maxNo = data.length ? Math.max.apply(null, data.map(function(item) { return item.no; })) : 0;
+  const pageCount = Math.ceil(maxNo / PAGE_SIZE);
+
+  let html =
+    '<button class="page-btn ' + (currentPage === "전체" ? "active" : "") +
+    '" onclick="selectPage(\'전체\')">전체</button>';
+
+  for (let i = 0; i < pageCount; i++) {
+    const start = i * PAGE_SIZE + 1;
+    const end = Math.min((i + 1) * PAGE_SIZE, maxNo);
+    const label = start + "~" + end;
+
+    html +=
+      '<button class="page-btn ' + (currentPage === i ? "active" : "") +
+      '" onclick="selectPage(' + i + ')">' + label + '</button>';
+  }
+
+  document.getElementById("pages").innerHTML = html;
+}
+
+function selectPage(page) {
+  currentPage = page;
+  makePages();
+  render();
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, function(char) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;"
+    }[char];
+  });
+}
+
+function render() {
+  const query = document.getElementById("search").value.toLowerCase().trim();
+
+  const filtered = data.filter(function(item) {
+    const text = (item.no + " " + item.nickname + " " + item.insta).toLowerCase();
+    const searchMatch = text.includes(query);
+
+    if (currentPage === "전체") {
+      return searchMatch;
+    }
+
+    const start = currentPage * PAGE_SIZE + 1;
+    const end = (currentPage + 1) * PAGE_SIZE;
+    const pageMatch = item.no >= start && item.no <= end;
+
+    return searchMatch && pageMatch;
+  });
+
+  document.getElementById("count").textContent =
+    "검색 결과 " + filtered.length.toLocaleString() + "명";
+
+  if (!filtered.length) {
+    document.getElementById("list").innerHTML =
+      '<div class="empty">표시할 인원이 없습니다.</div>';
+    return;
+  }
+
+  let html = "";
+
+  filtered.forEach(function(item) {
+    const instagramId = item.insta.replace("@", "");
+
+    html +=
+      '<div class="person">' +
+        '<div class="name">' + item.no + '. ' + escapeHtml(item.nickname) + '</div>' +
+        '<a class="insta" target="_blank" rel="noopener" href="https://www.instagram.com/' +
+          encodeURIComponent(instagramId) + '/">' +
+          escapeHtml(item.insta) +
+        '</a>' +
+      '</div>';
+  });
+
+  document.getElementById("list").innerHTML = html;
+}
+
 loadData();
 </script>
 </body>
