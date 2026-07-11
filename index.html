@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;padding:12px 12px 76px;font-family:Arial,"Malgun Gothic",sans-serif;background:#fff7fa;color:#222}
+body{margin:0;padding:12px 12px 78px;font-family:Arial,"Malgun Gothic",sans-serif;background:#fff7fa;color:#222}
 header{padding:8px 2px 14px}
 h1{margin:0;color:#d93673;font-size:24px}
 .sub{font-size:12px;color:#777;line-height:1.5}
@@ -27,10 +27,11 @@ input[type=text],input[type=password],input[type=file],textarea{width:100%;paddi
 .pageBtns,.filterBtns{display:flex;gap:6px;overflow-x:auto;padding:8px 0}
 .pageBtns button,.filterBtns button{white-space:nowrap;background:#fff;color:#444;border:1px solid #aaa;padding:8px 10px}
 .pageBtns button.active,.filterBtns button.active{background:#222;color:#fff}
-.person{display:grid;grid-template-columns:42px minmax(80px,1fr) auto;gap:7px;align-items:center;min-height:37px;padding:6px 2px;border-bottom:1px solid #e7e7e7;font-size:13px}
-.no{font-weight:bold;text-align:right}
-.name{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.insta{color:#1769c2;text-decoration:underline;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.person{display:grid;grid-template-columns:minmax(115px,1fr) auto auto;gap:7px;align-items:center;min-height:42px;padding:7px 2px;border-bottom:1px solid #e7e7e7;font-size:13px}
+.person .main{min-width:0}
+.person .name{font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person .id{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.instaBtn{text-decoration:none;color:#fff;background:#d93673;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:bold;white-space:nowrap}
 .status{font-size:11px;border-radius:999px;padding:5px 7px;white-space:nowrap}
 .green{background:#dcf6e5;color:#176e37}.red{background:#ffe1e4;color:#ac2637}.yellow{background:#fff0bd;color:#7c5a00}.gray{background:#eee;color:#555}
 .hidden{display:none!important}
@@ -44,6 +45,8 @@ input[type=text],input[type=password],input[type=file],textarea{width:100%;paddi
 .sectionTitle{font-size:18px;font-weight:bold;margin:2px 0 9px}
 .empty{text-align:center;color:#777;padding:24px}
 .help{background:#f7f7f7;border-radius:12px;padding:9px;font-size:12px;color:#666;line-height:1.5}
+.downloads{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.downloads button{padding:9px 6px;font-size:12px}
 </style>
 </head>
 <body>
@@ -80,7 +83,7 @@ input[type=text],input[type=password],input[type=file],textarea{width:100%;paddi
     <div id="zipProgress" class="sub" style="margin-top:8px"></div>
     <div class="help" style="margin-top:9px">
       인스타그램에서 다운로드한 정보 ZIP 파일을 압축 해제하지 않고 그대로 선택하세요.
-      파일은 서버로 전송되지 않고 현재 기기에서만 분석됩니다.
+      HTML과 JSON 형식을 자동으로 찾아 비교합니다.
     </div>
   </div>
 
@@ -96,9 +99,8 @@ input[type=text],input[type=password],input[type=file],textarea{width:100%;paddi
         <button onclick="setCheckFilter('mutual',this)">맞팔</button>
         <button onclick="setCheckFilter('onlyMe',this)">나만</button>
         <button onclick="setCheckFilter('onlyThem',this)">상대만</button>
-        <button onclick="setCheckFilter('roomOnly',this)">방명단만</button>
       </div>
-      <input id="checkSearch" type="text" placeholder="닉네임, 아이디 검색" oninput="renderCheck()">
+      <input id="checkSearch" type="text" placeholder="번호, 닉네임, 아이디 검색" oninput="renderCheck()">
       <div id="checkList"></div>
     </div>
   </div>
@@ -130,6 +132,13 @@ input[type=text],input[type=password],input[type=file],textarea{width:100%;paddi
         <div class="stat"><b id="adminRoomCount">0</b><span>방 명단</span></div>
         <div class="stat"><b id="adminMutual">0</b><span>맞팔</span></div>
         <div class="stat"><b id="adminIssue">0</b><span>확인 필요</span></div>
+      </div>
+
+      <div class="sectionTitle" style="margin-top:17px">결과 다운로드</div>
+      <div class="downloads">
+        <button onclick="downloadCsv('mutual')">맞팔.csv</button>
+        <button onclick="downloadCsv('onlyMe')">나만.csv</button>
+        <button onclick="downloadCsv('onlyThem')">상대만.csv</button>
       </div>
     </div>
   </div>
@@ -163,7 +172,13 @@ function showPage(page){
 }
 
 function norm(v){
-  return String(v||"").trim().replace(/^@/,"").replace(/\/$/,"").toLowerCase();
+  return String(v||"")
+    .trim()
+    .replace(/^@/,"")
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i,"")
+    .split(/[/?#]/)[0]
+    .replace(/\/$/,"")
+    .toLowerCase();
 }
 
 function roomJsonp(){
@@ -232,48 +247,48 @@ function renderRoomList(){
 
   document.getElementById("listCount").textContent="검색 결과 "+arr.length.toLocaleString()+"명";
   document.getElementById("roomList").innerHTML=arr.length?arr.map(x=>
-    '<div class="person"><div class="no">'+x.no+'.</div><div class="name">'+esc(x.nickname)+'</div><a class="insta" target="_blank" href="https://instagram.com/'+encodeURIComponent(x.id)+'">@'+esc(x.id)+'</a></div>'
+    '<div class="person"><div class="main"><div class="name">'+x.no+'. '+esc(x.nickname)+'</div><div class="id">@'+esc(x.id)+'</div></div><span></span><a class="instaBtn" target="_blank" href="https://instagram.com/'+encodeURIComponent(x.id)+'">인스타</a></div>'
   ).join(""):'<div class="empty">표시할 인원이 없습니다.</div>';
 }
 
 async function analyzeZip(){
   const file=document.getElementById("instagramZip").files[0];
   if(!file){alert("인스타그램 ZIP 파일을 선택해주세요.");return}
-  if(typeof JSZip==="undefined"){alert("ZIP 분석 도구를 불러오지 못했습니다. 인터넷 연결을 확인해주세요.");return}
+  if(typeof JSZip==="undefined"){alert("ZIP 분석 도구를 불러오지 못했습니다.");return}
 
   document.getElementById("zipProgress").textContent="ZIP 파일 읽는 중...";
   try{
     const zip=await JSZip.loadAsync(file);
     const names=Object.keys(zip.files).filter(n=>!zip.files[n].dir);
 
-    const followerFiles=names.filter(n=>/followers(_\d+)?\.(html|json)$/i.test(n));
-    const followingFiles=names.filter(n=>/(^|\/)following\.(html|json)$/i.test(n));
+    const followerFiles=names.filter(n=>/(^|\/)(followers(_\d+)?|followers_and_following\/followers(_\d+)?)\.(html|json)$/i.test(n));
+    const followingFiles=names.filter(n=>/(^|\/)(following|followers_and_following\/following)\.(html|json)$/i.test(n));
 
     if(!followerFiles.length||!followingFiles.length){
-      throw new Error("팔로워/팔로잉 파일을 찾지 못했습니다.");
+      throw new Error("팔로워 또는 팔로잉 파일을 찾지 못했습니다.");
     }
 
     const followerIds=new Set();
     const followingIds=new Set();
 
     for(const name of followerFiles){
-      document.getElementById("zipProgress").textContent="팔로워 분석 중...";
       const text=await zip.file(name).async("text");
-      parseInstagramFile(name,text).forEach(id=>followerIds.add(id));
+      parseInstagramFile(name,text,"followers").forEach(id=>followerIds.add(id));
     }
 
     for(const name of followingFiles){
-      document.getElementById("zipProgress").textContent="팔로잉 분석 중...";
       const text=await zip.file(name).async("text");
-      parseInstagramFile(name,text).forEach(id=>followingIds.add(id));
+      parseInstagramFile(name,text,"following").forEach(id=>followingIds.add(id));
     }
 
     followers=followerIds;
     following=followingIds;
+
     if(!roomData.length) await loadRoomList();
     buildCheckResults();
 
-    document.getElementById("zipProgress").textContent="분석 완료";
+    document.getElementById("zipProgress").textContent=
+      "분석 완료 · 팔로워 "+followers.size.toLocaleString()+"명 / 팔로잉 "+following.size.toLocaleString()+"명";
     document.getElementById("checkResults").classList.remove("hidden");
   }catch(e){
     document.getElementById("zipProgress").textContent="분석 실패";
@@ -281,8 +296,8 @@ async function analyzeZip(){
   }
 }
 
-function parseInstagramFile(name,text){
-  if(/\.json$/i.test(name)) return parseInstagramJson(text);
+function parseInstagramFile(name,text,type){
+  if(/\.json$/i.test(name)) return parseInstagramJson(text,type);
   return parseInstagramHtml(text);
 }
 
@@ -292,49 +307,86 @@ function parseInstagramHtml(text){
   doc.querySelectorAll("a").forEach(a=>{
     const href=a.getAttribute("href")||"";
     const txt=(a.textContent||"").trim();
+    let id="";
     const m=href.match(/instagram\.com\/([^/?#]+)/i);
-    let id=m?m[1]:txt;
+    if(m) id=m[1];
+    else if(/^[A-Za-z0-9._]+$/.test(txt)) id=txt;
     id=norm(id);
-    if(id&&!["accounts","explore","p","reel"].includes(id)) ids.add(id);
+    if(id&&/^[a-z0-9._]+$/.test(id)) ids.add(id);
   });
   return [...ids];
 }
 
-function parseInstagramJson(text){
+function parseInstagramJson(text,type){
   const ids=new Set();
-  try{
-    const obj=JSON.parse(text);
-    walkJson(obj,ids);
-  }catch(e){}
+  const obj=JSON.parse(text);
+
+  if(type==="followers"){
+    walkFollowerJson(obj,ids);
+  }else{
+    walkFollowingJson(obj,ids);
+  }
+
   return [...ids];
 }
 
-function walkJson(value,ids){
+function walkFollowerJson(value,ids){
   if(Array.isArray(value)){
-    value.forEach(v=>walkJson(v,ids));
+    value.forEach(v=>walkFollowerJson(v,ids));
     return;
   }
-  if(value&&typeof value==="object"){
-    if(typeof value.href==="string"){
-      const m=value.href.match(/instagram\.com\/([^/?#]+)/i);
-      if(m) ids.add(norm(m[1]));
-    }
-    if(typeof value.value==="string"&&/^[A-Za-z0-9._]+$/.test(value.value)){
-      ids.add(norm(value.value));
-    }
-    Object.values(value).forEach(v=>walkJson(v,ids));
+  if(!value||typeof value!=="object") return;
+
+  if(Array.isArray(value.string_list_data)){
+    value.string_list_data.forEach(item=>{
+      const id=norm(item.value||item.href||"");
+      if(id&&/^[a-z0-9._]+$/.test(id)) ids.add(id);
+    });
   }
+
+  Object.values(value).forEach(v=>walkFollowerJson(v,ids));
+}
+
+function walkFollowingJson(value,ids){
+  if(Array.isArray(value)){
+    value.forEach(v=>walkFollowingJson(v,ids));
+    return;
+  }
+  if(!value||typeof value!=="object") return;
+
+  if(Array.isArray(value.relationships_following)){
+    value.relationships_following.forEach(entry=>{
+      if(Array.isArray(entry.string_list_data)){
+        entry.string_list_data.forEach(item=>{
+          const id=norm(item.value||item.href||"");
+          if(id&&/^[a-z0-9._]+$/.test(id)) ids.add(id);
+        });
+      }
+      const titleId=norm(entry.title||"");
+      if(titleId&&/^[a-z0-9._]+$/.test(titleId)) ids.add(titleId);
+    });
+  }
+
+  if(Array.isArray(value.string_list_data)){
+    value.string_list_data.forEach(item=>{
+      const id=norm(item.value||item.href||"");
+      if(id&&/^[a-z0-9._]+$/.test(id)) ids.add(id);
+    });
+  }
+
+  Object.values(value).forEach(v=>walkFollowingJson(v,ids));
 }
 
 function buildCheckResults(){
   const roomMap=new Map(roomData.map(x=>[x.id,x]));
-  const all=new Set([...followers,...following,...roomMap.keys()]);
+  const all=new Set([...followers,...following]);
+
   checkResults=[...all].map(id=>{
     const f=followers.has(id),g=following.has(id);
-    let status="roomOnly";
-    if(f&&g)status="mutual";
-    else if(g&&!f)status="onlyMe";
-    else if(f&&!g)status="onlyThem";
+    let status="";
+    if(f&&g) status="mutual";
+    else if(g&&!f) status="onlyMe";
+    else if(f&&!g) status="onlyThem";
     const r=roomMap.get(id);
     return {id,no:r?r.no:"",nickname:r?r.nickname:"",status};
   }).sort((a,b)=>(a.no||999999)-(b.no||999999)||a.id.localeCompare(b.id));
@@ -362,14 +414,14 @@ function badge(s){
   if(s==="mutual")return '<span class="status green">맞팔</span>';
   if(s==="onlyMe")return '<span class="status red">나만</span>';
   if(s==="onlyThem")return '<span class="status yellow">상대만</span>';
-  return '<span class="status gray">방명단</span>';
+  return '<span class="status gray">확인</span>';
 }
 
 function renderCheck(){
   const q=(document.getElementById("checkSearch")?.value||"").toLowerCase().trim();
   const arr=checkResults.filter(x=>(checkFilter==="all"||x.status===checkFilter)&&(x.nickname+" "+x.id+" "+x.no).toLowerCase().includes(q));
   document.getElementById("checkList").innerHTML=arr.length?arr.map(x=>
-    '<div class="person"><div class="name">'+esc((x.no?x.no+". ":"")+(x.nickname||x.id))+'</div>'+badge(x.status)+'<a class="insta" target="_blank" href="https://instagram.com/'+encodeURIComponent(x.id)+'">@'+esc(x.id)+'</a></div>'
+    '<div class="person"><div class="main"><div class="name">'+esc((x.no?x.no+". ":"")+(x.nickname||x.id))+'</div><div class="id">@'+esc(x.id)+'</div></div>'+badge(x.status)+'<a class="instaBtn" target="_blank" href="https://instagram.com/'+encodeURIComponent(x.id)+'">인스타</a></div>'
   ).join(""):'<div class="empty">표시할 결과가 없습니다.</div>';
 }
 
@@ -404,6 +456,21 @@ function showNotice(){
     box.style.display="none";
     box.textContent="";
   }
+}
+
+function downloadCsv(status){
+  const rows=checkResults.filter(x=>x.status===status);
+  if(!rows.length){alert("다운로드할 결과가 없습니다.");return}
+  const header=["번호","닉네임","아이디","상태"];
+  const labels={mutual:"맞팔",onlyMe:"나만 팔로우",onlyThem:"상대만 팔로우"};
+  const csv=[header,...rows.map(x=>[x.no||"",x.nickname||"", "@"+x.id,labels[x.status]])]
+    .map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=labels[status]+".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 showNotice();
