@@ -1,0 +1,35 @@
+
+*{box-sizing:border-box}
+:root{--pink:#ff4f87;--deep:#d93673;--line:#ffd4e2;--bg:#fff7fa}
+body{margin:0;padding:12px 12px 78px;font-family:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:#222}
+button,input,textarea{font:inherit}
+.hero{display:flex;align-items:center;gap:11px;padding:8px 3px 14px}
+.logo{width:58px;height:58px;border-radius:18px;object-fit:cover;box-shadow:0 7px 18px rgba(217,54,115,.2)}
+.hero small{font-weight:900;letter-spacing:1.7px;color:#9d4365}
+h1{font-size:23px;color:var(--deep);margin:2px 0 0}h2{font-size:18px;margin:0 0 10px}h3{margin:17px 0 8px;color:var(--deep)}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:13px;margin-bottom:11px;box-shadow:0 5px 14px rgba(255,79,135,.08)}
+.top-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+button,.button-link{border:0;border-radius:12px;padding:11px;background:var(--pink);color:#fff;font-weight:800;text-align:center;text-decoration:none}
+.top-tabs button{background:#fff;color:#555;border:1px solid #bbb}.top-tabs button.active{background:#222;color:#fff;border-color:#222}
+.full,.button-link{display:block;width:100%}.dark{background:#222}.outline{background:#fff;color:var(--deep);border:1px solid #ff95bb}.danger{color:#d72c40}
+.field{width:100%;padding:11px;border:1px solid #bbb;border-radius:12px;margin:5px 0 8px;background:#fff}
+.scroll-buttons,.filter-buttons{display:flex;gap:6px;overflow-x:auto;padding:8px 0;-webkit-overflow-scrolling:touch}
+.scroll-buttons button,.filter-buttons button{white-space:nowrap;background:#fff;color:#444;border:1px solid #aaa;padding:8px 10px}
+.scroll-buttons button.active,.filter-buttons button.active{background:#222;color:#fff}
+.muted{font-size:12px;color:#777;line-height:1.5}.help{background:#f5f5f5;border-radius:12px;padding:9px;font-size:12px;color:#666;line-height:1.5;margin-top:8px}
+.room-row,.check-row{display:grid;grid-template-columns:minmax(115px,1fr) auto;align-items:center;gap:7px;min-height:42px;padding:7px 3px;border-bottom:1px solid #e8e8e8;background:#fff}
+.check-row{grid-template-columns:minmax(115px,1fr) auto auto}
+.main{min-width:0}.name{font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.id{font-size:12px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.insta{color:#1769c2;text-decoration:underline;font-size:12px;white-space:nowrap}
+.insta-btn{color:#fff;background:var(--deep);border-radius:999px;padding:7px 9px;font-size:11px;font-weight:800;text-decoration:none}
+.status{font-size:11px;border-radius:999px;padding:5px 7px;white-space:nowrap}.mutual{background:#dcf6e5;color:#176e37}.onlyMe{background:#ffe1e4;color:#ac2637}.onlyThem{background:#fff0bd;color:#7c5a00}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stats>div{text-align:center;border:1px solid var(--line);border-radius:13px;padding:8px 3px}.stats b{display:block;color:var(--deep);font-size:18px}.stats span{font-size:10px}
+.notice{background:#fff0f5;border:1px solid #ffc5d8;border-radius:12px;padding:10px;white-space:pre-line;font-size:13px;margin-bottom:10px}
+.hidden{display:none!important}.empty{text-align:center;color:#777;padding:24px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:14px}
+.modal{background:#fff;border-radius:22px;padding:16px;width:100%;max-width:430px;max-height:88vh;overflow:auto}
+.two-cols{display:grid;grid-template-columns:1fr 1fr;gap:7px}.three-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.three-cols button{padding:9px 4px;font-size:12px}
+details{margin-top:14px;background:#f7f7f7;border-radius:12px;padding:9px}pre{white-space:pre-wrap;font-size:11px;color:#555}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;box-shadow:0 -4px 12px rgba(0,0,0,.08);z-index:20}
+.bottom-nav button{flex:1;border-radius:0;background:#fff;color:var(--deep);font-size:17px;padding:7px 3px}.bottom-nav span{display:block;font-size:11px;margin-top:2px}
+@media(max-width:360px){.check-row{grid-template-columns:minmax(95px,1fr) auto auto}.insta-btn{padding:6px 7px}}
