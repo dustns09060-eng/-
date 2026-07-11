@@ -19,7 +19,6 @@ button,.btn{border:0;border-radius:11px;padding:11px 9px;font-weight:800;backgro
 .full{width:100%;display:block}
 .field{width:100%;padding:12px;border:1px solid #d4d4d4;border-radius:11px;background:#fff;margin-bottom:8px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.three{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .outline{background:#fff;color:#444;border:1px solid #ccc}
 .dark{background:#222}
 .pages,.filters{display:flex;gap:6px;overflow-x:auto;padding:9px 0}
@@ -142,14 +141,6 @@ textarea{resize:none}
         <button id="noticeSave">공지 저장</button>
         <button id="noticeDelete" class="outline">공지 삭제</button>
       </div>
-
-
-      <h3>CSV 다운로드</h3>
-      <div class="three">
-        <button data-csv="mutual">맞팔</button>
-        <button data-csv="onlyMe">나만</button>
-        <button data-csv="onlyThem">상대만</button>
-      </div>
     </div>
   </div>
 </div>
@@ -236,7 +227,7 @@ function showNotice(){const v=localStorage.getItem('yeowooNotice')||'';if(v){$('
 
 function csv(status){const arr=results.filter(x=>x.status===status);if(!arr.length){alert('결과가 없습니다.');return}const labels={mutual:'맞팔',onlyMe:'나만',onlyThem:'상대만'},rows=[['번호','닉네임','아이디','상태'],...arr.map(x=>[x.no,x.nickname,'@'+x.id,labels[status]])],text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob(['\ufeff'+text],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=labels[status]+'.csv';a.click()}
 
-document.addEventListener('click',e=>{const p=e.target.closest('[data-page]')?.dataset.page;if(p)switchPage(p);const lp=e.target.closest('[data-list-page]');if(lp){listPage=lp.dataset.listPage==='all'?'all':Number(lp.dataset.listPage);makePages();renderRoom()}const f=e.target.closest('[data-filter]');if(f){filter=f.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));f.classList.add('active');renderCheck()}const c=e.target.closest('[data-csv]')?.dataset.csv;if(c)csv(c)});
+document.addEventListener('click',e=>{const p=e.target.closest('[data-page]')?.dataset.page;if(p)switchPage(p);const lp=e.target.closest('[data-list-page]');if(lp){listPage=lp.dataset.listPage==='all'?'all':Number(lp.dataset.listPage);makePages();renderRoom()}const f=e.target.closest('[data-filter]');if(f){filter=f.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));f.classList.add('active');renderCheck()}});
 $('bottomAdmin').onclick=openAdmin;$('adminClose').onclick=closeAdmin;$('adminPanelClose').onclick=closeAdmin;$('adminLogin').onclick=login;$('adminLogout').onclick=logout;$('togglePw').onclick=()=>{const show=$('adminPw').type==='password';$('adminPw').type=show?'text':'password';$('togglePw').textContent=show?'숨김':'보기'};$('adminPw').onkeydown=e=>{if(e.key==='Enter')login()};$('reloadRoom').onclick=loadRoom;$('adminReload').onclick=loadRoom;$('analyzeZip').onclick=analyze;$('listSearch').oninput=renderRoom;$('checkSearch').oninput=renderCheck;$('noticeSave').onclick=saveNotice;$('noticeDelete').onclick=deleteNotice;$('toggleCheckLock').onclick=toggleCheckLock;
 showNotice();updateCheckLockUI();loadRoom();
 </script>
