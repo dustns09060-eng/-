@@ -15,10 +15,7 @@ header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 h1{font-size:21px;margin:0}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:20px 0 9px}
 .small{font-size:12px;color:var(--muted);line-height:1.5}
 .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 button,.btn{border:0;border-radius:11px;padding:11px 9px;font-weight:800;background:var(--pink);color:#fff;text-decoration:none;text-align:center}
-.tabs button{background:#fff;color:#555;border:1px solid #d5d5d5}
-.tabs button.active{background:#222;color:#fff;border-color:#222}
 .full{width:100%;display:block}
 .field{width:100%;padding:12px;border:1px solid #d4d4d4;border-radius:11px;background:#fff;margin-bottom:8px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:7px}
@@ -62,12 +59,6 @@ textarea{resize:none}
 
 <div id="noticeBox" class="notice hidden"></div>
 
-<div class="card tabs">
-  <button id="tabList" class="active" data-page="list">팔로우리스트</button>
-  <button id="tabCheck" data-page="check">맞팔확인</button>
-  <button id="openAdmin">운영진</button>
-</div>
-
 <section id="listPage">
   <div class="card">
     <h2>팔로우리스트</h2>
@@ -80,6 +71,13 @@ textarea{resize:none}
 </section>
 
 <section id="checkPage" class="hidden">
+  <div id="checkLocked" class="card hidden" style="text-align:center;padding:30px 16px">
+    <div style="font-size:42px;margin-bottom:10px">🔒</div>
+    <h2 style="margin-bottom:8px">맞팔확인이 잠겨있습니다</h2>
+    <div class="small">운영진이 맞팔확인 기능을 잠금 설정했습니다.</div>
+  </div>
+
+  <div id="checkUnlocked">
   <div class="card">
     <h2>맞팔 확인</h2>
     <input id="instagramZip" class="field" type="file" accept=".zip,application/zip">
@@ -108,6 +106,7 @@ textarea{resize:none}
       <div id="checkList"></div>
     </div>
   </div>
+  </div>
 </section>
 
 <div id="adminModal" class="modal-bg hidden">
@@ -129,6 +128,10 @@ textarea{resize:none}
         <button id="adminPanelClose" class="outline">닫기</button>
       </div>
 
+      <h3>맞팔확인 설정</h3>
+      <div id="lockStatus" class="help" style="margin-bottom:8px"></div>
+      <button id="toggleCheckLock" class="full dark">맞팔확인 잠금 변경</button>
+
       <h3>명단 관리</h3>
       <a class="btn full dark" href="https://docs.google.com/spreadsheets/d/1m14GywxIymZp6p9izJ6QVWaC8fCnjr5F5OdXCKKUcss/edit" target="_blank" rel="noopener">구글시트 열기</a>
       <button id="adminReload" class="full">명단 새로고침</button>
@@ -140,11 +143,6 @@ textarea{resize:none}
         <button id="noticeDelete" class="outline">공지 삭제</button>
       </div>
 
-      <h3>기본 통계</h3>
-      <div class="stats">
-        <div><b id="adminRoomCount">0</b><span>방 명단</span></div>
-        <div><b id="adminIssue">0</b><span>확인 필요</span></div>
-      </div>
 
       <h3>CSV 다운로드</h3>
       <div class="three">
@@ -186,11 +184,24 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const norm=v=>String(v||'').trim().replace(/^@/,'').replace(/^https?:\/\/(www\.)?instagram\.com\//i,'').replace(/^_u\//i,'').split(/[/?#]/)[0].toLowerCase();
 
-function switchPage(page){$('listPage').classList.toggle('hidden',page!=='list');$('checkPage').classList.toggle('hidden',page!=='check');$('tabList').classList.toggle('active',page==='list');$('tabCheck').classList.toggle('active',page==='check');window.scrollTo(0,0)}
+function isCheckLocked(){return localStorage.getItem('yeowooCheckLocked')!=='0'}
+function updateCheckLockUI(){
+  const locked=isCheckLocked();
+  $('checkLocked').classList.toggle('hidden',!locked);
+  $('checkUnlocked').classList.toggle('hidden',locked);
+  $('lockStatus').textContent=locked?'현재 상태: 🔒 잠금':'현재 상태: 🔓 사용 가능';
+  $('toggleCheckLock').textContent=locked?'맞팔확인 잠금 풀기':'맞팔확인 잠그기';
+}
+function switchPage(page){
+  $('listPage').classList.toggle('hidden',page!=='list');
+  $('checkPage').classList.toggle('hidden',page!=='check');
+  if(page==='check') updateCheckLockUI();
+  window.scrollTo(0,0);
+}
 
 function loadSheet(){return new Promise((resolve,reject)=>{const cb='cb_'+Date.now(),s=document.createElement('script');const timer=setTimeout(()=>{clean();reject(new Error('timeout'))},12000);function clean(){clearTimeout(timer);try{delete window[cb]}catch(e){}s.remove()}window[cb]=j=>{clean();resolve(j)};s.onerror=()=>{clean();reject(new Error('load'))};s.src='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?sheet='+encodeURIComponent(SHEET_NAME)+'&tqx=responseHandler:'+cb+';out:json&cache='+Date.now();document.head.appendChild(s)})}
 
-async function loadRoom(){$('listCount').textContent='불러오는 중...';try{const j=await loadSheet(),rows=j.table?.rows||[];roomData=rows.map(r=>{const c=r.c||[];return{no:Number(String(c[0]?.v??'').replace(/[^0-9]/g,'')),nickname:String(c[1]?.v??'').trim(),id:norm(c[2]?.v??'')}}).filter(x=>x.no&&x.nickname&&x.id).sort((a,b)=>a.no-b.no);$('adminRoomCount').textContent=roomData.length.toLocaleString();makePages();renderRoom();if(followers.size||following.size)buildResults()}catch(e){$('listCount').textContent='연동 오류';$('roomList').innerHTML='<div class="empty">명단을 불러오지 못했습니다.</div>'}}
+async function loadRoom(){$('listCount').textContent='불러오는 중...';try{const j=await loadSheet(),rows=j.table?.rows||[];roomData=rows.map(r=>{const c=r.c||[];return{no:Number(String(c[0]?.v??'').replace(/[^0-9]/g,'')),nickname:String(c[1]?.v??'').trim(),id:norm(c[2]?.v??'')}}).filter(x=>x.no&&x.nickname&&x.id).sort((a,b)=>a.no-b.no);makePages();renderRoom();if(followers.size||following.size)buildResults()}catch(e){$('listCount').textContent='연동 오류';$('roomList').innerHTML='<div class="empty">명단을 불러오지 못했습니다.</div>'}}
 
 function makePages(){const max=roomData.length?Math.max(...roomData.map(x=>x.no)):0,count=Math.ceil(max/PAGE_SIZE);let h='<button class="'+(listPage==='all'?'active':'')+'" data-list-page="all">전체</button>';for(let i=0;i<count;i++){const s=i*PAGE_SIZE+1,e=Math.min((i+1)*PAGE_SIZE,max);h+='<button class="'+(listPage===i?'active':'')+'" data-list-page="'+i+'">'+s+'~'+e+'</button>'}$('pageButtons').innerHTML=h}
 
@@ -201,7 +212,7 @@ function parseJson(text){const set=new Set(),obj=JSON.parse(text);function walk(
 
 async function analyze(){const file=$('instagramZip').files[0];if(!file){alert('ZIP 파일을 선택해주세요.');return}$('zipProgress').textContent='분석 중...';try{const zip=await JSZip.loadAsync(file),names=Object.keys(zip.files).filter(n=>!zip.files[n].dir),ff=names.filter(n=>/(^|\/)followers(_\d+)?\.(html|json)$/i.test(n)),fg=names.filter(n=>/(^|\/)following\.(html|json)$/i.test(n));if(!ff.length||!fg.length)throw new Error('followers 또는 following 파일을 찾지 못했습니다.');const a=new Set(),b=new Set();for(const n of ff){const t=await zip.file(n).async('text'),ids=/\.json$/i.test(n)?parseJson(t):parseHtml(t);ids.forEach(x=>a.add(x))}for(const n of fg){const t=await zip.file(n).async('text'),ids=/\.json$/i.test(n)?parseJson(t):parseHtml(t);ids.forEach(x=>b.add(x))}followers=a;following=b;if(!roomData.length)await loadRoom();buildResults();$('zipProgress').textContent='분석 완료 · Sheet1 명단 '+roomData.length.toLocaleString()+'명 비교';$('checkResults').classList.remove('hidden')}catch(e){$('zipProgress').textContent='분석 실패';alert(e.message)}}
 
-function buildResults(){results=roomData.map(x=>{const f=followers.has(x.id),g=following.has(x.id);let status='missing';if(f&&g)status='mutual';else if(g&&!f)status='onlyMe';else if(f&&!g)status='onlyThem';return{...x,status}});const c=s=>results.filter(x=>x.status===s).length;$('mutualCount').textContent=c('mutual').toLocaleString();$('onlyMeCount').textContent=c('onlyMe').toLocaleString();$('onlyThemCount').textContent=c('onlyThem').toLocaleString();$('missingCount').textContent=c('missing').toLocaleString();$('adminIssue').textContent=(c('onlyMe')+c('onlyThem')+c('missing')).toLocaleString();renderCheck()}
+function buildResults(){results=roomData.map(x=>{const f=followers.has(x.id),g=following.has(x.id);let status='missing';if(f&&g)status='mutual';else if(g&&!f)status='onlyMe';else if(f&&!g)status='onlyThem';return{...x,status}});const c=s=>results.filter(x=>x.status===s).length;$('mutualCount').textContent=c('mutual').toLocaleString();$('onlyMeCount').textContent=c('onlyMe').toLocaleString();$('onlyThemCount').textContent=c('onlyThem').toLocaleString();$('missingCount').textContent=c('missing').toLocaleString();renderCheck()}
 
 function badge(s){return'<span class="badge '+s+'">'+({mutual:'맞팔',onlyMe:'나만',onlyThem:'상대만',missing:'없음'}[s])+'</span>'}
 function renderCheck(){const q=$('checkSearch').value.toLowerCase().trim(),arr=results.filter(x=>(filter==='all'||x.status===filter)&&(x.no+' '+x.nickname+' '+x.id).toLowerCase().includes(q));$('checkCount').textContent='검색 결과 '+arr.length.toLocaleString()+'명';$('checkList').innerHTML=arr.length?arr.map(x=>'<div class="check-row"><div class="main"><div class="name">'+x.no+'. '+esc(x.nickname)+'</div><div class="id">@'+esc(x.id)+'</div></div>'+badge(x.status)+'<a class="ig" target="_blank" href="https://instagram.com/'+encodeURIComponent(x.id)+'">인스타</a></div>').join(''):'<div class="empty">표시할 결과가 없습니다.</div>'}
@@ -212,6 +223,13 @@ function showAdmin(){$('loginBox').classList.add('hidden');$('adminPanel').class
 function login(){if($('adminPw').value===ADMIN_PASSWORD){sessionStorage.setItem('yeowooAdmin','1');showAdmin()}else{alert('비밀번호가 틀렸습니다.');$('adminPw').value='';$('adminPw').focus()}}
 function logout(){sessionStorage.removeItem('yeowooAdmin');$('adminPanel').classList.add('hidden');$('loginBox').classList.remove('hidden');$('adminPw').value=''}
 
+function toggleCheckLock(){
+  const nextLocked=!isCheckLocked();
+  localStorage.setItem('yeowooCheckLocked',nextLocked?'1':'0');
+  updateCheckLockUI();
+  alert(nextLocked?'맞팔확인을 잠갔습니다.':'맞팔확인 잠금을 풀었습니다.');
+}
+
 function saveNotice(){const v=$('noticeInput').value.trim();localStorage.setItem('yeowooNotice',v);showNotice();alert('저장 완료')}
 function deleteNotice(){localStorage.removeItem('yeowooNotice');$('noticeInput').value='';showNotice();alert('삭제 완료')}
 function showNotice(){const v=localStorage.getItem('yeowooNotice')||'';if(v){$('noticeBox').classList.remove('hidden');$('noticeBox').textContent='📢 '+v;$('noticeInput').value=v}else{$('noticeBox').classList.add('hidden')}}
@@ -219,8 +237,8 @@ function showNotice(){const v=localStorage.getItem('yeowooNotice')||'';if(v){$('
 function csv(status){const arr=results.filter(x=>x.status===status);if(!arr.length){alert('결과가 없습니다.');return}const labels={mutual:'맞팔',onlyMe:'나만',onlyThem:'상대만'},rows=[['번호','닉네임','아이디','상태'],...arr.map(x=>[x.no,x.nickname,'@'+x.id,labels[status]])],text=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n'),blob=new Blob(['\ufeff'+text],{type:'text/csv'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=labels[status]+'.csv';a.click()}
 
 document.addEventListener('click',e=>{const p=e.target.closest('[data-page]')?.dataset.page;if(p)switchPage(p);const lp=e.target.closest('[data-list-page]');if(lp){listPage=lp.dataset.listPage==='all'?'all':Number(lp.dataset.listPage);makePages();renderRoom()}const f=e.target.closest('[data-filter]');if(f){filter=f.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));f.classList.add('active');renderCheck()}const c=e.target.closest('[data-csv]')?.dataset.csv;if(c)csv(c)});
-$('openAdmin').onclick=openAdmin;$('bottomAdmin').onclick=openAdmin;$('adminClose').onclick=closeAdmin;$('adminPanelClose').onclick=closeAdmin;$('adminLogin').onclick=login;$('adminLogout').onclick=logout;$('togglePw').onclick=()=>{const show=$('adminPw').type==='password';$('adminPw').type=show?'text':'password';$('togglePw').textContent=show?'숨김':'보기'};$('adminPw').onkeydown=e=>{if(e.key==='Enter')login()};$('reloadRoom').onclick=loadRoom;$('adminReload').onclick=loadRoom;$('analyzeZip').onclick=analyze;$('listSearch').oninput=renderRoom;$('checkSearch').oninput=renderCheck;$('noticeSave').onclick=saveNotice;$('noticeDelete').onclick=deleteNotice;
-showNotice();loadRoom();
+$('bottomAdmin').onclick=openAdmin;$('adminClose').onclick=closeAdmin;$('adminPanelClose').onclick=closeAdmin;$('adminLogin').onclick=login;$('adminLogout').onclick=logout;$('togglePw').onclick=()=>{const show=$('adminPw').type==='password';$('adminPw').type=show?'text':'password';$('togglePw').textContent=show?'숨김':'보기'};$('adminPw').onkeydown=e=>{if(e.key==='Enter')login()};$('reloadRoom').onclick=loadRoom;$('adminReload').onclick=loadRoom;$('analyzeZip').onclick=analyze;$('listSearch').oninput=renderRoom;$('checkSearch').oninput=renderCheck;$('noticeSave').onclick=saveNotice;$('noticeDelete').onclick=deleteNotice;$('toggleCheckLock').onclick=toggleCheckLock;
+showNotice();updateCheckLockUI();loadRoom();
 </script>
 </body>
 </html>
