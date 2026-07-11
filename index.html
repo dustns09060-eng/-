@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>여우방 명단</title>
+<style>
+body{margin:0;padding:12px;font-family:Arial,"Malgun Gothic",sans-serif;background:#fff;color:#222}
+h1{font-size:22px;margin:0 0 12px}
+.tools{border:1px solid #ccc;padding:10px;margin-bottom:12px}
+input{width:100%;padding:10px;font-size:15px;border:1px solid #aaa;box-sizing:border-box;margin-bottom:8px}
+button{padding:9px 12px;border:1px solid #888;background:#f4f4f4;color:#222;font-weight:bold}
+.tabs{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px}
+.tab{white-space:nowrap;min-width:52px}.active{background:#222;color:#fff}
+.count{font-size:13px;color:#666;margin-top:8px}
+.group{border-top:2px solid #222;margin-top:18px;padding-top:10px}
+.group-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.group-title{font-size:18px;font-weight:bold}
+.person{border-bottom:1px solid #ddd;padding:9px 2px;line-height:1.45}
+.nickname{font-weight:bold}.insta{color:#1666c1;text-decoration:underline;word-break:break-all}
+.empty{padding:24px 0;text-align:center;color:#777}
+</style>
+</head>
+<body>
+<h1>여우방 명단</h1>
+<div class="tools">
+  <input id="search" placeholder="번호, 닉네임, 아이디 검색" oninput="render()">
+  <button onclick="loadData()">새로고침</button>
+  <div id="tabs" class="tabs"></div>
+  <div id="count" class="count">불러오는 중...</div>
+</div>
+<div id="list"></div>
+<script>
+const SHEET_ID="1m14GywxIymZp6p9izJ6QVWaC8fCnjr5F5OdXCKKUcss";
+const SHEET_NAME="Sheet1";
+const GROUP_SIZE=30;
+let data=[], selected="전체";
+
+function loadWithJsonp(){
+  return new Promise((resolve,reject)=>{
+    const cb="liteCallback_"+Date.now();
+    window[cb]=json=>{delete window[cb];script.remove();resolve(json)};
+    const script=document.createElement("script");
+    script.onerror=()=>{delete window[cb];script.remove();reject(new Error("load failed"))};
+    script.src="https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/gviz/tq?sheet="+encodeURIComponent(SHEET_NAME)+"&tqx=responseHandler:"+cb+";out:json&cache="+Date.now();
+    document.body.appendChild(script);
+  });
+}
+function norm(v){v=String(v||"").trim();return v?(v.startsWith("@")?v:"@"+v):""}
+function parseRows(json){
+  const rows=(json.table&&json.table.rows)?json.table.rows:[];
+  const out=rows.map(r=>{const c=r.c||[];return {
+    no:Number(String(c[0]&&c[0].v!=null?c[0].v:"").replace(/[^0-9]/g,"")),
+    nickname:String(c[1]&&c[1].v!=null?c[1].v:"").trim(),
+    insta:norm(c[2]&&c[2].v!=null?c[2].v:"")
+  }});
+  return out.filter(x=>x.no&&x.nickname&&x.insta).sort((a,b)=>a.no-b.no);
+}
+async function loadData(){
+  document.getElementById("count").textContent="불러오는 중...";
+  try{data=parseRows(await loadWithJsonp());makeTabs();render()}
+  catch(e){document.getElementById("count").textContent="연동 오류";document.getElementById("list").innerHTML='<div class="empty">명단을 불러오지 못했습니다.</div>'}
+}
+function groupNo(no){return Math.floor((Number(no)-1)/GROUP_SIZE)+1}
+function makeTabs(){
+  const max=data.length?Math.max(...data.map(x=>groupNo(x.no))):0;
+  let html='<button class="tab '+(selected==="전체"?"active":"")+'" onclick="selectTab(\\'전체\\')">전체</button>';
+  for(let i=1;i<=max;i++) html+='<button class="tab '+(selected===i?"active":"")+'" onclick="selectTab('+i+')">'+i+'조</button>';
+  document.getElementById("tabs").innerHTML=html;
+}
+function selectTab(g){selected=g;makeTabs();render()}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function render(){
+  const q=document.getElementById("search").value.toLowerCase().trim();
+  const filtered=data.filter(x=>(x.no+" "+x.nickname+" "+x.insta).toLowerCase().includes(q)&&(selected==="전체"||groupNo(x.no)===selected));
+  document.getElementById("count").textContent="검색 결과 "+filtered.length.toLocaleString()+"명";
+  if(!filtered.length){document.getElementById("list").innerHTML='<div class="empty">표시할 인원이 없습니다.</div>';return}
+  const groups={};filtered.forEach(x=>{const g=groupNo(x.no);(groups[g]||(groups[g]=[])).push(x)});
+  let html="";
+  Object.keys(groups).map(Number).sort((a,b)=>a-b).forEach(g=>{
+    html+='<section class="group"><div class="group-head"><div class="group-title">'+g+'조 ('+groups[g].length+'명)</div><button onclick="copyGroup('+g+')">'+g+'조 복사</button></div>';
+    groups[g].forEach(x=>{const id=x.insta.replace("@","");html+='<div class="person"><div><span class="nickname">'+x.no+'. '+esc(x.nickname)+'</span></div><a class="insta" target="_blank" href="https://instagram.com/'+encodeURIComponent(id)+'">'+esc(x.insta)+'</a></div>'});
+    html+='</section>';
+  });
+  document.getElementById("list").innerHTML=html;
+}
+function copyGroup(g){
+  const text=data.filter(x=>groupNo(x.no)===g).map(x=>x.no+". "+x.nickname+" "+x.insta).join("\\n");
+  navigator.clipboard.writeText(text).then(()=>alert(g+"조 복사 완료"));
+}
+loadData();
+</script>
+</body>
+</html>
